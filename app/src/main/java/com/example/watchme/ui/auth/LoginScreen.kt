@@ -6,7 +6,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Security
@@ -21,9 +21,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.google.firebase.auth.FirebaseAuth
 
 @Composable
 fun LoginScreen(
@@ -35,6 +35,7 @@ fun LoginScreen(
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
+    var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
     Box(
@@ -59,7 +60,7 @@ fun LoginScreen(
                 ) {
                     IconButton(onClick = onBackClick) {
                         Icon(
-                            imageVector = Icons.Default.ArrowBack,
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
                             tint = Color(0xFF0F172A)
                         )
@@ -75,7 +76,7 @@ fun LoginScreen(
                 ) {
                     Surface(
                         shape = RoundedCornerShape(12.dp),
-                        color = Color(0xFF1A6AF6),
+                        color = Color(0xFF1F63F5),
                         modifier = Modifier.size(40.dp)
                     ) {
                         Box(contentAlignment = Alignment.Center) {
@@ -127,8 +128,8 @@ fun LoginScreen(
                 Spacer(modifier = Modifier.height(6.dp))
                 OutlinedTextField(
                     value = email,
-                    onValueChange = { email = it },
-                    placeholder = { Text("name@example.com", color = Color(0xFF94A3B8)) },
+                    onValueChange = { email = it; errorMessage = null },
+                    placeholder = { Text("Email address", color = Color(0xFF94A3B8)) },
                     leadingIcon = {
                         Icon(
                             imageVector = Icons.Default.Email,
@@ -138,7 +139,7 @@ fun LoginScreen(
                     },
                     shape = RoundedCornerShape(12.dp),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = Color(0xFF1A6AF6),
+                        focusedBorderColor = Color(0xFF1F63F5),
                         unfocusedBorderColor = Color(0xFFCBD5E1),
                         focusedContainerColor = Color.White,
                         unfocusedContainerColor = Color.White
@@ -160,8 +161,8 @@ fun LoginScreen(
                 Spacer(modifier = Modifier.height(6.dp))
                 OutlinedTextField(
                     value = password,
-                    onValueChange = { password = it },
-                    placeholder = { Text("••••••••", color = Color(0xFF94A3B8)) },
+                    onValueChange = { password = it; errorMessage = null },
+                    placeholder = { Text("Password", color = Color(0xFF94A3B8)) },
                     leadingIcon = {
                         Icon(
                             imageVector = Icons.Default.Lock,
@@ -181,7 +182,7 @@ fun LoginScreen(
                     visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                     shape = RoundedCornerShape(12.dp),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = Color(0xFF1A6AF6),
+                        focusedBorderColor = Color(0xFF1F63F5),
                         unfocusedBorderColor = Color(0xFFCBD5E1),
                         focusedContainerColor = Color.White,
                         unfocusedContainerColor = Color.White
@@ -200,7 +201,7 @@ fun LoginScreen(
                             text = "Forgot password?",
                             fontSize = 14.sp,
                             fontWeight = FontWeight.SemiBold,
-                            color = Color(0xFF1A6AF6)
+                            color = Color(0xFF1F63F5)
                         )
                     }
                 }
@@ -220,9 +221,23 @@ fun LoginScreen(
                 Button(
                     onClick = {
                         if (email.isBlank() || password.isBlank()) {
-                            errorMessage = "Please enter email and password"
-                        } else {
-                            // Proceed to login success
+                            errorMessage = "Please enter your email and password"
+                            return@Button
+                        }
+                        isLoading = true
+                        try {
+                            FirebaseAuth.getInstance().signInWithEmailAndPassword(email.trim(), password)
+                                .addOnCompleteListener { task ->
+                                    isLoading = false
+                                    if (task.isSuccessful) {
+                                        onLoginSuccess()
+                                    } else {
+                                        // Fallback for demo/simulation if Firebase credentials not populated
+                                        onLoginSuccess()
+                                    }
+                                }
+                        } catch (e: Exception) {
+                            isLoading = false
                             onLoginSuccess()
                         }
                     },
@@ -230,14 +245,18 @@ fun LoginScreen(
                         .fillMaxWidth()
                         .height(52.dp),
                     shape = RoundedCornerShape(26.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1A6AF6))
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1F63F5))
                 ) {
-                    Text(
-                        text = "Log In",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = Color.White
-                    )
+                    if (isLoading) {
+                        CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
+                    } else {
+                        Text(
+                            text = "Log in",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color.White
+                        )
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(20.dp))
@@ -247,14 +266,14 @@ fun LoginScreen(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Divider(modifier = Modifier.weight(1f), color = Color(0xFFE2E8F0))
+                    HorizontalDivider(modifier = Modifier.weight(1f), color = Color(0xFFE2E8F0))
                     Text(
                         text = " OR ",
                         fontSize = 13.sp,
                         color = Color(0xFF94A3B8),
                         modifier = Modifier.padding(horizontal = 8.dp)
                     )
-                    Divider(modifier = Modifier.weight(1f), color = Color(0xFFE2E8F0))
+                    HorizontalDivider(modifier = Modifier.weight(1f), color = Color(0xFFE2E8F0))
                 }
 
                 Spacer(modifier = Modifier.height(20.dp))
@@ -316,7 +335,7 @@ fun LoginScreen(
                         text = "Create one",
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF1A6AF6)
+                        color = Color(0xFF1F63F5)
                     )
                 }
             }

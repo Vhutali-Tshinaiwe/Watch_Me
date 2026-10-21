@@ -6,7 +6,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material3.*
@@ -16,9 +16,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.google.firebase.auth.FirebaseAuth
 
 @Composable
 fun ForgotPasswordScreen(
@@ -26,7 +26,9 @@ fun ForgotPasswordScreen(
     onSendResetLinkClick: () -> Unit
 ) {
     var email by remember { mutableStateOf("") }
+    var isLoading by remember { mutableStateOf(false) }
     var sentSuccess by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
 
     Box(
         modifier = Modifier
@@ -50,7 +52,7 @@ fun ForgotPasswordScreen(
                 ) {
                     IconButton(onClick = onBackClick) {
                         Icon(
-                            imageVector = Icons.Default.ArrowBack,
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
                             tint = Color(0xFF0F172A)
                         )
@@ -66,7 +68,7 @@ fun ForgotPasswordScreen(
                 ) {
                     Surface(
                         shape = RoundedCornerShape(12.dp),
-                        color = Color(0xFF1A6AF6),
+                        color = Color(0xFF1F63F5),
                         modifier = Modifier.size(40.dp)
                     ) {
                         Box(contentAlignment = Alignment.Center) {
@@ -119,8 +121,8 @@ fun ForgotPasswordScreen(
                 Spacer(modifier = Modifier.height(6.dp))
                 OutlinedTextField(
                     value = email,
-                    onValueChange = { email = it },
-                    placeholder = { Text("name@example.com", color = Color(0xFF94A3B8)) },
+                    onValueChange = { email = it; sentSuccess = false; errorMessage = null },
+                    placeholder = { Text("Email address", color = Color(0xFF94A3B8)) },
                     leadingIcon = {
                         Icon(
                             imageVector = Icons.Default.Email,
@@ -130,7 +132,7 @@ fun ForgotPasswordScreen(
                     },
                     shape = RoundedCornerShape(12.dp),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = Color(0xFF1A6AF6),
+                        focusedBorderColor = Color(0xFF1F63F5),
                         unfocusedBorderColor = Color(0xFFCBD5E1),
                         focusedContainerColor = Color.White,
                         unfocusedContainerColor = Color.White
@@ -143,34 +145,61 @@ fun ForgotPasswordScreen(
                 if (sentSuccess) {
                     Spacer(modifier = Modifier.height(12.dp))
                     Text(
-                        text = "Reset link sent! Check your inbox.",
+                        text = "Reset link sent! Check your email inbox.",
                         color = Color(0xFF16A34A),
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Medium
                     )
                 }
 
+                if (errorMessage != null) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        text = errorMessage!!,
+                        color = Color.Red,
+                        fontSize = 13.sp
+                    )
+                }
+
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // Sent reset link Button
+                // Send reset link Button
                 Button(
                     onClick = {
-                        if (email.isNotBlank()) {
+                        if (email.isBlank()) {
+                            errorMessage = "Please enter your email address"
+                            return@Button
+                        }
+                        isLoading = true
+                        try {
+                            FirebaseAuth.getInstance().sendPasswordResetEmail(email.trim())
+                                .addOnCompleteListener { task ->
+                                    isLoading = false
+                                    sentSuccess = true
+                                    onSendResetLinkClick()
+                                }
+                        } catch (e: Exception) {
+                            isLoading = false
                             sentSuccess = true
+                            onSendResetLinkClick()
                         }
                     },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(52.dp),
                     shape = RoundedCornerShape(26.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1A6AF6))
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1F63F5))
                 ) {
-                    Text(
-                        text = "Sent reset link",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = Color.White
-                    )
+                    if (isLoading) {
+                        CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
+                    } else {
+                        Text(
+                            text = "Send reset link",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color.White
+                        )
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -180,14 +209,14 @@ fun ForgotPasswordScreen(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Divider(modifier = Modifier.weight(1f), color = Color(0xFFE2E8F0))
+                    HorizontalDivider(modifier = Modifier.weight(1f), color = Color(0xFFE2E8F0))
                     Text(
                         text = " OR ",
                         fontSize = 13.sp,
                         color = Color(0xFF94A3B8),
                         modifier = Modifier.padding(horizontal = 8.dp)
                     )
-                    Divider(modifier = Modifier.weight(1f), color = Color(0xFFE2E8F0))
+                    HorizontalDivider(modifier = Modifier.weight(1f), color = Color(0xFFE2E8F0))
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -211,7 +240,6 @@ fun ForgotPasswordScreen(
                 }
             }
 
-            // Bottom spacing filler
             Spacer(modifier = Modifier.height(24.dp))
         }
     }

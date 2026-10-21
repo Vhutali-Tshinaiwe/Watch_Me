@@ -1,17 +1,19 @@
 package com.example.watchme.ui.home
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -19,292 +21,345 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-
-data class SafetyAlert(
-    val id: String,
-    val type: String,
-    val location: String,
-    val timeAgo: String,
-    val status: String,
-    val statusColor: Color,
-    val note: String
-)
+import com.example.watchme.data.model.IncidentReport
+import com.example.watchme.data.repository.WatchMeRepository
+import com.example.watchme.ui.components.ReportCard
+import com.example.watchme.ui.components.WatchMeBottomNavBar
+import com.example.watchme.ui.theme.PrimaryBlue
+import com.google.firebase.auth.FirebaseAuth
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
-    onLogoutClick: () -> Unit
+    repository: WatchMeRepository,
+    selectedTab: Int,
+    onTabSelected: (Int) -> Unit,
+    onViewMapClick: () -> Unit,
+    onSeeAllClick: () -> Unit,
+    onIncidentClick: (String) -> Unit,
+    onSosClick: () -> Unit,
+    onNotificationClick: () -> Unit
 ) {
-    var selectedTab by remember { mutableIntStateOf(0) }
-    val alerts = listOf(
-        SafetyAlert("1", "Protest / Roadblock", "N1 Highway, Johannesburg", "4 mins ago", "Escalating", Color(0xFFDC2626), "Burning tires reported near offramp. Avoid area."),
-        SafetyAlert("2", "Fire Outbreak", "Soweto, Main Rd", "12 mins ago", "Developing", Color(0xFFEA580C), "Grass fire spreading close to residential homes."),
-        SafetyAlert("3", "Suspicious Activity", "Sandton Central", "25 mins ago", "Cooling down", Color(0xFF16A34A), "Police presence increased, situation stabilizing.")
-    )
+    val incidents by repository.incidents.collectAsState()
+    val currentUser = FirebaseAuth.getInstance().currentUser
+    val userName = currentUser?.displayName?.ifBlank { "there" } ?: "there"
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
                         Surface(
-                            shape = RoundedCornerShape(8.dp),
-                            color = Color(0xFF1A6AF6),
-                            modifier = Modifier.size(32.dp)
+                            shape = RoundedCornerShape(10.dp),
+                            color = PrimaryBlue,
+                            modifier = Modifier.size(36.dp)
                         ) {
                             Box(contentAlignment = Alignment.Center) {
-                                Icon(Icons.Default.Security, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
+                                Icon(
+                                    imageVector = Icons.Default.Security,
+                                    contentDescription = "Watch Me Logo",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(20.dp)
+                                )
                             }
                         }
                         Spacer(modifier = Modifier.width(10.dp))
-                        Text("Watch Me — South Africa", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                        Column {
+                            Text(
+                                text = "Watch Me",
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = "Good afternoon, $userName",
+                                fontSize = 12.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
                 },
                 actions = {
-                    IconButton(onClick = onLogoutClick) {
-                        Icon(Icons.Default.Notifications, contentDescription = "Watch Zones")
+                    IconButton(onClick = { /* Profile click */ }) {
+                        Surface(
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.surfaceVariant,
+                            modifier = Modifier.size(36.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = Icons.Default.Person,
+                                    contentDescription = "Profile",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
+                    }
+                    IconButton(onClick = onNotificationClick) {
+                        Surface(
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.surfaceVariant,
+                            modifier = Modifier.size(36.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = Icons.Default.Notifications,
+                                    contentDescription = "Notifications",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface)
             )
         },
         bottomBar = {
-            NavigationBar(containerColor = Color.White) {
-                NavigationBarItem(
-                    selected = selectedTab == 0,
-                    onClick = { selectedTab = 0 },
-                    icon = { Icon(Icons.Default.LocationOn, contentDescription = "Map") },
-                    label = { Text("Live Map") }
-                )
-                NavigationBarItem(
-                    selected = selectedTab == 1,
-                    onClick = { selectedTab = 1 },
-                    icon = { Icon(Icons.Default.LocalFireDepartment, contentDescription = "Feed") },
-                    label = { Text("Alerts Feed") }
-                )
-                NavigationBarItem(
-                    selected = selectedTab == 2,
-                    onClick = { selectedTab = 2 },
-                    icon = { Icon(Icons.Default.Phone, contentDescription = "Emergency") },
-                    label = { Text("Emergency (112)") }
-                )
-            }
-        },
-        floatingActionButton = {
-            FloatingActionButton(
-                onClick = { /* Post Alert */ },
-                containerColor = Color(0xFF1A6AF6),
-                contentColor = Color.White
-            ) {
-                Icon(Icons.Default.Add, contentDescription = "Post Alert")
-            }
+            WatchMeBottomNavBar(
+                selectedTab = selectedTab,
+                onTabSelected = onTabSelected
+            )
         }
     ) { innerPadding ->
-        Box(
+        LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .background(Color(0xFFF1F5F9))
+                .background(MaterialTheme.colorScheme.background)
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            when (selectedTab) {
-                0 -> MapFeedView(alerts = alerts, isMap = true)
-                1 -> MapFeedView(alerts = alerts, isMap = false)
-                2 -> EmergencyScreen()
-            }
-        }
-    }
-}
-
-@Composable
-fun MapFeedView(alerts: List<SafetyAlert>, isMap: Boolean) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp)
-    ) {
-        // Watch Zone Banner
-        Card(
-            shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = Color(0xFF1A6AF6)),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Column {
-                    Text("Watch Zone: Home (Sandton)", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp)
-                    Text("0 active alerts in your immediate radius", color = Color.White.copy(alpha = 0.8f), fontSize = 12.sp)
-                }
-                Surface(
-                    shape = RoundedCornerShape(20.dp),
-                    color = Color.White.copy(alpha = 0.2f)
-                ) {
-                    Text("Active", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp))
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        if (isMap) {
-            // Simulated live map box
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(200.dp)
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(Color(0xFFCBD5E1)),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(Icons.Default.LocationOn, contentDescription = "Map pin", tint = Color(0xFF1A6AF6), modifier = Modifier.size(48.dp))
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text("Live Community Safety Map (South Africa)", fontWeight = FontWeight.Bold, color = Color(0xFF334155))
-                    Text("Tap pins to view status confirmations", fontSize = 12.sp, color = Color(0xFF64748B))
-                }
-            }
-            Spacer(modifier = Modifier.height(16.dp))
-        }
-
-        Text(
-            text = if (isMap) "Nearby Alerts (Newest First)" else "Community Alert Feed",
-            fontWeight = FontWeight.Bold,
-            fontSize = 16.sp,
-            color = Color(0xFF0F172A)
-        )
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        LazyColumn(
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-            modifier = Modifier.fillMaxSize()
-        ) {
-            items(alerts) { alert ->
+            // Hero Blue Card
+            item {
                 Card(
-                    shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(containerColor = PrimaryBlue),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
+                    Column(modifier = Modifier.padding(20.dp)) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(alert.type, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color(0xFF0F172A))
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Default.LocationOn,
+                                    contentDescription = null,
+                                    tint = Color.White,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "42 Currie Rd, Mus - Durban",
+                                    color = Color.White,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
                             Surface(
                                 shape = RoundedCornerShape(12.dp),
-                                color = alert.statusColor.copy(alpha = 0.15f)
+                                color = Color.White.copy(alpha = 0.25f)
                             ) {
                                 Text(
-                                    text = alert.status,
-                                    color = alert.statusColor,
+                                    text = "LIVE",
+                                    color = Color.White,
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold,
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
                                 )
                             }
                         }
 
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(alert.location, fontSize = 13.sp, color = Color(0xFF64748B))
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(alert.note, fontSize = 14.sp, color = Color(0xFF334155))
-                        Spacer(modifier = Modifier.height(12.dp))
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        Text(
+                            text = "Stay aware, stay connected.",
+                            fontSize = 24.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+
+                        Spacer(modifier = Modifier.height(6.dp))
+
+                        Text(
+                            text = "2 active reports within 2 km. Reports are community information, not safety advice.",
+                            fontSize = 13.sp,
+                            color = Color.White.copy(alpha = 0.9f)
+                        )
+
+                        Spacer(modifier = Modifier.height(16.dp))
 
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(alert.timeAgo, fontSize = 11.sp, color = Color(0xFF94A3B8))
+                            Text(
+                                text = "Updated 14:32 SAST",
+                                fontSize = 12.sp,
+                                color = Color.White.copy(alpha = 0.8f)
+                            )
 
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                OutlinedButton(
-                                    onClick = { },
-                                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
-                                    modifier = Modifier.height(30.dp)
-                                ) {
-                                    Text("Still happening", fontSize = 11.sp)
-                                }
-                                Button(
-                                    onClick = { },
-                                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
-                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF16A34A)),
-                                    modifier = Modifier.height(30.dp)
-                                ) {
-                                    Text("It's over", fontSize = 11.sp)
-                                }
+                            Button(
+                                onClick = onViewMapClick,
+                                shape = RoundedCornerShape(20.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = Color.White.copy(alpha = 0.25f),
+                                    contentColor = Color.White
+                                ),
+                                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp),
+                                modifier = Modifier.height(36.dp)
+                            ) {
+                                Text(text = "View map ↗", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
                             }
                         }
                     }
                 }
             }
-        }
-    }
-}
 
-@Composable
-fun EmergencyScreen() {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Surface(
-            shape = RoundedCornerShape(24.dp),
-            color = Color(0xFFDC2626).copy(alpha = 0.1f),
-            modifier = Modifier.size(80.dp)
-        ) {
-            Box(contentAlignment = Alignment.Center) {
-                Icon(Icons.Default.Phone, contentDescription = "Emergency", tint = Color(0xFFDC2626), modifier = Modifier.size(40.dp))
+            // Circle Sharing Strip
+            item {
+                Card(
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, PrimaryBlue.copy(alpha = 0.3f)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Surface(
+                                shape = CircleShape,
+                                color = PrimaryBlue.copy(alpha = 0.12f),
+                                modifier = Modifier.size(36.dp)
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(
+                                        imageVector = Icons.Default.Share,
+                                        contentDescription = "Circle",
+                                        tint = PrimaryBlue,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                            }
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column {
+                                Text(
+                                    text = "Sharing with your circle",
+                                    fontSize = 11.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Text(
+                                    text = "Trip to Work · ETA 14:50",
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Text(
+                                    text = "With Naledi & Thabo · ends 15:00",
+                                    fontSize = 11.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+                }
             }
-        }
 
-        Spacer(modifier = Modifier.height(20.dp))
+            // Nearby Updates Header
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Nearby updates",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    TextButton(onClick = onSeeAllClick) {
+                        Text(
+                            text = "See all",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = PrimaryBlue
+                        )
+                    }
+                }
+            }
 
-        Text("Emergency Assistance", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0F172A))
-        Spacer(modifier = Modifier.height(8.dp))
-        Text("Official South African emergency numbers are always a tap away.", fontSize = 14.sp, color = Color(0xFF64748B), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+            // Incident List
+            items(incidents) { incident ->
+                ReportCard(
+                    report = incident,
+                    onClick = { onIncidentClick(incident.id) },
+                    onStillHappening = {
+                        repository.submitUpdate(incident.id, "Still happening", "Still present")
+                    },
+                    onItsOver = {
+                        repository.submitUpdate(incident.id, "It is over", "Situation resolved")
+                    }
+                )
+            }
 
-        Spacer(modifier = Modifier.height(32.dp))
+            // Red SOS Button & Footer Disclaimer
+            item {
+                Spacer(modifier = Modifier.height(8.dp))
 
-        Button(
-            onClick = { /* Call 112 */ },
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(56.dp),
-            shape = RoundedCornerShape(28.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFDC2626))
-        ) {
-            Icon(Icons.Default.Phone, contentDescription = null, tint = Color.White)
-            Spacer(modifier = Modifier.width(8.dp))
-            Text("Call 112 (Emergency)", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
-        }
+                Button(
+                    onClick = onSosClick,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(52.dp),
+                    shape = RoundedCornerShape(26.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFDC2626))
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Phone,
+                        contentDescription = "SOS",
+                        tint = Color.White,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "- Tap & Hold for SOS -",
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                }
 
-        Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(10.dp))
 
-        OutlinedButton(
-            onClick = { /* Call 10111 */ },
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(56.dp),
-            shape = RoundedCornerShape(28.dp),
-            border = androidx.compose.foundation.BorderStroke(1.5.dp, Color(0xFFDC2626)),
-            colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFDC2626))
-        ) {
-            Icon(Icons.Default.Phone, contentDescription = null, tint = Color(0xFFDC2626))
-            Spacer(modifier = Modifier.width(8.dp))
-            Text("Call 10111 (Police)", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFFDC2626))
+                Text(
+                    text = "Fictional locations, GPS & delivery are simulated.",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+            }
         }
     }
 }
